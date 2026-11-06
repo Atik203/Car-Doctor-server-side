@@ -1,10 +1,10 @@
-require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const app = express();
+require("dotenv").config();
 const port = process.env.PORT || 5000;
 
 app.use(
@@ -50,6 +50,26 @@ async function run() {
     const serviceCollection = client.db("carDoctor").collection("services");
     const bookingCollection = client.db("carDoctor").collection("bookings");
 
+    // app.post("/jwt2", async (req, res) => {
+    //   const user = req.body;
+    //   const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET1, {
+    //     expiresIn: "1hr",
+    //   });
+    //   res
+    //     .cookie("token", token, {
+    //       httpOnly: true,
+    //       secure: true,
+    //       sameSite: "none",
+    //     })
+    //     .send({ success: true });
+    // });
+
+    app.post("/logout", async (req, res) => {
+      const user = req.body;
+
+      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
+
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
@@ -60,13 +80,21 @@ async function run() {
         .cookie("token", token, {
           httpOnly: true,
           secure: false,
-          // sameSite: "strict",
+          // sameSite: "none",
         })
         .send({ success: true });
     });
 
     app.get("/services", async (req, res) => {
-      const cursor = serviceCollection.find();
+      const filter = req.query;
+      console.log(filter.sort);
+      const searchString = filter.search ? String(filter.search) : "";
+      const query = { title: { $regex: searchString, $options: "i" } };
+      const options = {
+        sort: { price: filter.sort === "asc" ? 1 : -1 },
+      };
+
+      const cursor = serviceCollection.find(query, options);
       const result = await cursor.toArray();
       res.send(result);
     });
